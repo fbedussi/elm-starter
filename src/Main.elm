@@ -12,55 +12,51 @@ import Url.Parser exposing ((</>))
 
 type alias Model =
     { navigationKey : Nav.Key
-    , route : Route
-    , counterPage : Pages.Counter.Model
-    , surveyPage : Pages.Survey.Model
+    , route : Maybe Route
+    , page : Page
+    , userName : String
     }
 
 
 type Route
     = CounterRoute
     | SurveyRoute String
-    | NotFoundRoute
 
 
-parseUrl : Url -> Route
-parseUrl url =
-    let
-        parse =
-            Url.Parser.oneOf
-                [ Url.Parser.map CounterRoute Url.Parser.top
-                , Url.Parser.map SurveyRoute (Url.Parser.s "survey" </> Url.Parser.string)
-                ]
-                |> Url.Parser.parse
-    in
-    parse url
-        |> Maybe.withDefault NotFoundRoute
+type Page
+    = CounterPage Pages.Counter.Model
+    | SurveyPage Pages.Survey.Model
+    | NotFoundPage
+
+
+parseUrl : Url -> Maybe Route
+parseUrl =
+    Url.Parser.oneOf
+        [ Url.Parser.map CounterRoute Url.Parser.top
+        , Url.Parser.map SurveyRoute (Url.Parser.s "survey" </> Url.Parser.string)
+        ]
+        |> Url.Parser.parse
 
 
 view : Model -> Browser.Document Msg
 view model =
     let
         content =
-            case model.route of
-                CounterRoute ->
-                    Pages.Counter.view model.counterPage
+            case model.page of
+                CounterPage counterModel ->
+                    Pages.Counter.view counterModel
                         |> Html.map GotCounterMsg
 
-                SurveyRoute userName ->
-                    let
-                        survayModel =
-                            model.surveyPage
-                    in
-                    Pages.Survey.view { survayModel | name = userName }
+                SurveyPage surveyModel ->
+                    Pages.Survey.view surveyModel
                         |> Html.map GotSurveyMsg
 
-                NotFoundRoute ->
+                NotFoundPage ->
                     text "Sorry, I did't find this page"
     in
     { title = getTitle model.route
     , body =
-        [ viewHeader model.route model.surveyPage.name
+        [ viewHeader model.route model.userName
         , main_ []
             [ content ]
         , footer []
@@ -70,29 +66,29 @@ view model =
     }
 
 
-getTitle : Route -> String
+getTitle : Maybe Route -> String
 getTitle route =
     case route of
-        CounterRoute ->
+        Just CounterRoute ->
             "Elm SPA boilerplate - Counter"
 
-        SurveyRoute _ ->
+        Just (SurveyRoute _) ->
             "Elm SPA boilerplate - Survay"
 
         _ ->
             "Elm SPA boilerplate"
 
 
-viewHeader : Route -> String -> Html msg
+viewHeader : Maybe Route -> String -> Html msg
 viewHeader activeRoute userName =
     let
-        isActive : Route -> Route -> Bool
+        isActive : Maybe Route -> Route -> Bool
         isActive routeA routeB =
             case ( routeA, routeB ) of
-                ( CounterRoute, CounterRoute ) ->
+                ( Just CounterRoute, CounterRoute ) ->
                     True
 
-                ( SurveyRoute _, SurveyRoute _ ) ->
+                ( Just (SurveyRoute _), SurveyRoute _ ) ->
                     True
 
                 ( _, _ ) ->
@@ -119,6 +115,7 @@ type Msg
     | ChangedUrl Url
     | GotCounterMsg Pages.Counter.Msg
     | GotSurveyMsg Pages.Survey.Msg
+    | GotUserName String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -134,38 +131,49 @@ update msg model =
             ( model, Nav.pushUrl model.navigationKey urlString )
 
         ChangedUrl url ->
-            ( { model | route = parseUrl url }
-            , Cmd.none
+            let
+                { route, page, cmd } =
+                    processUrl 0 url
+            in
+            ( { model | route = route, page = page }
+            , cmd
             )
 
         GotCounterMsg counterMsg ->
-            -- in this case we will update the model and run commands only if we are in the Counter page
-            case model.route of
-                CounterRoute ->
+            case model.page of
+                CounterPage oldCounterModel ->
                     let
-                        ( counterModel, counterCmd ) =
-                            Pages.Counter.update counterMsg model.counterPage
+                        ( newCounterModel, counterCmd ) =
+                            Pages.Counter.update counterMsg oldCounterModel
                     in
-                    ( { model | counterPage = counterModel }, Cmd.map GotCounterMsg counterCmd )
+                    ( { model | page = CounterPage newCounterModel }, Cmd.map GotCounterMsg counterCmd )
 
                 _ ->
                     ( model, Cmd.none )
 
         GotSurveyMsg surveyMsg ->
-            {- in this case we will update the page model and run the commands even if we are not in the Survay page
-               because the userName that we will use in the survay page is sent at the page boot
-            -}
-            let
-                ( survayModel, survayCmd ) =
-                    Pages.Survey.update surveyMsg model.surveyPage
-            in
-            ( { model | surveyPage = survayModel }, Cmd.map GotSurveyMsg survayCmd )
+            case model.page of
+                SurveyPage oldSurveyModel ->
+                    let
+                        ( newSurveyModel, surveyCmd ) =
+                            Pages.Survey.update surveyMsg oldSurveyModel
+                    in
+                    ( { model | page = SurveyPage newSurveyModel }, Cmd.map GotSurveyMsg surveyCmd )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        GotUserName userName ->
+            ( { model | userName = userName }, Cmd.none )
 
 
 port sendUrlChangeRequest : String -> Cmd msg
 
 
 port performUrlChange : (String -> msg) -> Sub msg
+
+
+port getUserName : (String -> msg) -> Sub msg
 
 
 type alias Flags =
@@ -186,19 +194,58 @@ main =
 
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init initialCounter url navigationKey =
-    ( { route = parseUrl url
-      , counterPage = Pages.Counter.init initialCounter
-      , surveyPage = Pages.Survey.init False "no-name"
-      , navigationKey = navigationKey
+    let
+        { route, page, userName, cmd } =
+            processUrl initialCounter url
+    in
+    ( { navigationKey = navigationKey
+      , route = route
+      , page = page
+      , userName = userName
       }
-    , Cmd.none
+    , cmd
     )
 
 
-subscriptions : { a | route : Route, surveyPage : Pages.Survey.Model } -> Sub Msg
+processUrl : Int -> Url -> { route : Maybe Route, page : Page, userName : String, cmd : Cmd msg }
+processUrl initialCounter url =
+    let
+        route =
+            parseUrl url
+
+        defaultName =
+            "no-name"
+
+        ( page, cmd, userName ) =
+            case route of
+                Just CounterRoute ->
+                    let
+                        ( model, counterCmd ) =
+                            Pages.Counter.init initialCounter
+                    in
+                    ( CounterPage model, counterCmd, defaultName )
+
+                Just (SurveyRoute name) ->
+                    ( SurveyPage (Pages.Survey.init False name), Cmd.none, name )
+
+                Nothing ->
+                    ( NotFoundPage, Cmd.none, defaultName )
+    in
+    { route = route, page = page, userName = userName, cmd = cmd }
+
+
+subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Pages.Survey.subscriptions model.surveyPage
-            |> Sub.map GotSurveyMsg
-        , performUrlChange PerformUrlChange
-        ]
+    let
+        baseSubscriptions =
+            [ getUserName GotUserName
+            , performUrlChange PerformUrlChange
+            ]
+    in
+    case model.page of
+        CounterPage counterModel ->
+            Sub.batch
+                (baseSubscriptions ++ [ Pages.Counter.subscriptions counterModel |> Sub.map GotCounterMsg ])
+
+        _ ->
+            Sub.batch baseSubscriptions

@@ -1,4 +1,4 @@
-port module Pages.Counter exposing (Model, Msg, init, update, view)
+port module Pages.Counter exposing (Model, Msg, init, subscriptions, update, view)
 
 import Html exposing (Html, button, div, span, text)
 import Html.Attributes exposing (attribute)
@@ -13,9 +13,16 @@ type alias Model =
 type Msg
     = Increment
     | Decrement
+    | GotCounter Int
 
 
 port setCounter : Int -> Cmd msg
+
+
+port gotCounter : (Int -> msg) -> Sub msg
+
+
+port requestCounter : () -> Cmd msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -35,6 +42,9 @@ update msg model =
             in
             ( { model | counter = counter }, setCounter counter )
 
+        GotCounter counter ->
+            ( { model | counter = counter }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
@@ -50,7 +60,14 @@ view model =
         ]
 
 
-init : Int -> { counter : Int }
+init : Int -> ( Model, Cmd msg )
 init initialCounter =
-    { counter = initialCounter
-    }
+    ( { counter = initialCounter
+      }
+    , requestCounter ()
+    )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    gotCounter GotCounter

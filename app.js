@@ -5358,8 +5358,23 @@ var $elm$core$Task$perform = F2(
 				A2($elm$core$Task$map, toMessage, task)));
 	});
 var $elm$browser$Browser$application = _Browser_application;
+var $author$project$Main$CounterPage = function (a) {
+	return {$: 'CounterPage', a: a};
+};
+var $author$project$Main$NotFoundPage = {$: 'NotFoundPage'};
+var $author$project$Main$SurveyPage = function (a) {
+	return {$: 'SurveyPage', a: a};
+};
+var $elm$json$Json$Encode$null = _Json_encodeNull;
+var $author$project$Pages$Counter$requestCounter = _Platform_outgoingPort(
+	'requestCounter',
+	function ($) {
+		return $elm$json$Json$Encode$null;
+	});
 var $author$project$Pages$Counter$init = function (initialCounter) {
-	return {counter: initialCounter};
+	return _Utils_Tuple2(
+		{counter: initialCounter},
+		$author$project$Pages$Counter$requestCounter(_Utils_Tuple0));
 };
 var $author$project$Pages$Survey$Idle = {$: 'Idle'};
 var $author$project$Pages$Survey$init = F2(
@@ -5369,7 +5384,6 @@ var $author$project$Pages$Survey$init = F2(
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Main$CounterRoute = {$: 'CounterRoute'};
-var $author$project$Main$NotFoundRoute = {$: 'NotFoundRoute'};
 var $author$project$Main$SurveyRoute = function (a) {
 	return {$: 'SurveyRoute', a: a};
 };
@@ -6147,76 +6161,109 @@ var $elm$url$Url$Parser$top = $elm$url$Url$Parser$Parser(
 		return _List_fromArray(
 			[state]);
 	});
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
+var $author$project$Main$parseUrl = $elm$url$Url$Parser$parse(
+	$elm$url$Url$Parser$oneOf(
+		_List_fromArray(
+			[
+				A2($elm$url$Url$Parser$map, $author$project$Main$CounterRoute, $elm$url$Url$Parser$top),
+				A2(
+				$elm$url$Url$Parser$map,
+				$author$project$Main$SurveyRoute,
+				A2(
+					$elm$url$Url$Parser$slash,
+					$elm$url$Url$Parser$s('survey'),
+					$elm$url$Url$Parser$string))
+			])));
+var $author$project$Main$processUrl = F2(
+	function (initialCounter, url) {
+		var route = $author$project$Main$parseUrl(url);
+		var defaultName = 'no-name';
+		var _v0 = function () {
+			if (route.$ === 'Just') {
+				if (route.a.$ === 'CounterRoute') {
+					var _v2 = route.a;
+					var _v3 = $author$project$Pages$Counter$init(initialCounter);
+					var model = _v3.a;
+					var counterCmd = _v3.b;
+					return _Utils_Tuple3(
+						$author$project$Main$CounterPage(model),
+						counterCmd,
+						defaultName);
+				} else {
+					var name = route.a.a;
+					return _Utils_Tuple3(
+						$author$project$Main$SurveyPage(
+							A2($author$project$Pages$Survey$init, false, name)),
+						$elm$core$Platform$Cmd$none,
+						name);
+				}
+			} else {
+				return _Utils_Tuple3($author$project$Main$NotFoundPage, $elm$core$Platform$Cmd$none, defaultName);
+			}
+		}();
+		var page = _v0.a;
+		var cmd = _v0.b;
+		var userName = _v0.c;
+		return {cmd: cmd, page: page, route: route, userName: userName};
 	});
-var $author$project$Main$parseUrl = function (url) {
-	var parse = $elm$url$Url$Parser$parse(
-		$elm$url$Url$Parser$oneOf(
-			_List_fromArray(
-				[
-					A2($elm$url$Url$Parser$map, $author$project$Main$CounterRoute, $elm$url$Url$Parser$top),
-					A2(
-					$elm$url$Url$Parser$map,
-					$author$project$Main$SurveyRoute,
-					A2(
-						$elm$url$Url$Parser$slash,
-						$elm$url$Url$Parser$s('survey'),
-						$elm$url$Url$Parser$string))
-				])));
-	return A2(
-		$elm$core$Maybe$withDefault,
-		$author$project$Main$NotFoundRoute,
-		parse(url));
-};
 var $author$project$Main$init = F3(
 	function (initialCounter, url, navigationKey) {
+		var _v0 = A2($author$project$Main$processUrl, initialCounter, url);
+		var route = _v0.route;
+		var page = _v0.page;
+		var userName = _v0.userName;
+		var cmd = _v0.cmd;
 		return _Utils_Tuple2(
-			{
-				counterPage: $author$project$Pages$Counter$init(initialCounter),
-				navigationKey: navigationKey,
-				route: $author$project$Main$parseUrl(url),
-				surveyPage: A2($author$project$Pages$Survey$init, false, 'no-name')
-			},
-			$elm$core$Platform$Cmd$none);
+			{navigationKey: navigationKey, page: page, route: route, userName: userName},
+			cmd);
 	});
 var $elm$json$Json$Decode$int = _Json_decodeInt;
-var $author$project$Main$GotSurveyMsg = function (a) {
-	return {$: 'GotSurveyMsg', a: a};
+var $author$project$Main$GotCounterMsg = function (a) {
+	return {$: 'GotCounterMsg', a: a};
+};
+var $author$project$Main$GotUserName = function (a) {
+	return {$: 'GotUserName', a: a};
 };
 var $author$project$Main$PerformUrlChange = function (a) {
 	return {$: 'PerformUrlChange', a: a};
 };
 var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$core$Platform$Sub$map = _Platform_map;
 var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$Main$getUserName = _Platform_incomingPort('getUserName', $elm$json$Json$Decode$string);
+var $elm$core$Platform$Sub$map = _Platform_map;
 var $author$project$Main$performUrlChange = _Platform_incomingPort('performUrlChange', $elm$json$Json$Decode$string);
-var $author$project$Pages$Survey$GotUserName = function (a) {
-	return {$: 'GotUserName', a: a};
+var $author$project$Pages$Counter$GotCounter = function (a) {
+	return {$: 'GotCounter', a: a};
 };
-var $author$project$Pages$Survey$getUserName = _Platform_incomingPort('getUserName', $elm$json$Json$Decode$string);
-var $author$project$Pages$Survey$subscriptions = function (model) {
-	return $author$project$Pages$Survey$getUserName($author$project$Pages$Survey$GotUserName);
+var $author$project$Pages$Counter$gotCounter = _Platform_incomingPort('gotCounter', $elm$json$Json$Decode$int);
+var $author$project$Pages$Counter$subscriptions = function (_v0) {
+	return $author$project$Pages$Counter$gotCounter($author$project$Pages$Counter$GotCounter);
 };
 var $author$project$Main$subscriptions = function (model) {
-	return $elm$core$Platform$Sub$batch(
-		_List_fromArray(
-			[
-				A2(
-				$elm$core$Platform$Sub$map,
-				$author$project$Main$GotSurveyMsg,
-				$author$project$Pages$Survey$subscriptions(model.surveyPage)),
-				$author$project$Main$performUrlChange($author$project$Main$PerformUrlChange)
-			]));
+	var baseSubscriptions = _List_fromArray(
+		[
+			$author$project$Main$getUserName($author$project$Main$GotUserName),
+			$author$project$Main$performUrlChange($author$project$Main$PerformUrlChange)
+		]);
+	var _v0 = model.page;
+	if (_v0.$ === 'CounterPage') {
+		var counterModel = _v0.a;
+		return $elm$core$Platform$Sub$batch(
+			_Utils_ap(
+				baseSubscriptions,
+				_List_fromArray(
+					[
+						A2(
+						$elm$core$Platform$Sub$map,
+						$author$project$Main$GotCounterMsg,
+						$author$project$Pages$Counter$subscriptions(counterModel))
+					])));
+	} else {
+		return $elm$core$Platform$Sub$batch(baseSubscriptions);
+	}
 };
-var $author$project$Main$GotCounterMsg = function (a) {
-	return {$: 'GotCounterMsg', a: a};
+var $author$project$Main$GotSurveyMsg = function (a) {
+	return {$: 'GotSurveyMsg', a: a};
 };
 var $elm$browser$Browser$Navigation$load = _Browser_load;
 var $elm$core$Platform$Cmd$map = _Platform_map;
@@ -6271,20 +6318,28 @@ var $elm$json$Json$Encode$int = _Json_wrap;
 var $author$project$Pages$Counter$setCounter = _Platform_outgoingPort('setCounter', $elm$json$Json$Encode$int);
 var $author$project$Pages$Counter$update = F2(
 	function (msg, model) {
-		if (msg.$ === 'Increment') {
-			var counter = model.counter + 1;
-			return _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{counter: counter}),
-				$author$project$Pages$Counter$setCounter(counter));
-		} else {
-			var counter = model.counter - 1;
-			return _Utils_Tuple2(
-				_Utils_update(
-					model,
-					{counter: counter}),
-				$author$project$Pages$Counter$setCounter(counter));
+		switch (msg.$) {
+			case 'Increment':
+				var counter = model.counter + 1;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{counter: counter}),
+					$author$project$Pages$Counter$setCounter(counter));
+			case 'Decrement':
+				var counter = model.counter - 1;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{counter: counter}),
+					$author$project$Pages$Counter$setCounter(counter));
+			default:
+				var counter = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{counter: counter}),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
 var $author$project$Pages$Survey$Data = function (a) {
@@ -6682,13 +6737,6 @@ var $author$project$Pages$Survey$update = F2(
 						model,
 						{likeElm: likeElm}),
 					$elm$core$Platform$Cmd$none);
-			case 'GotUserName':
-				var userName = msg.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{name: userName}),
-					$elm$core$Platform$Cmd$none);
 			case 'LoadData':
 				var id = msg.a;
 				return _Utils_Tuple2(
@@ -6742,49 +6790,71 @@ var $author$project$Main$update = F2(
 					A2($elm$browser$Browser$Navigation$pushUrl, model.navigationKey, urlString));
 			case 'ChangedUrl':
 				var url = msg.a;
+				var _v1 = A2($author$project$Main$processUrl, 0, url);
+				var route = _v1.route;
+				var page = _v1.page;
+				var cmd = _v1.cmd;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{
-							route: $author$project$Main$parseUrl(url)
-						}),
-					$elm$core$Platform$Cmd$none);
+						{page: page, route: route}),
+					cmd);
 			case 'GotCounterMsg':
 				var counterMsg = msg.a;
-				var _v1 = model.route;
-				if (_v1.$ === 'CounterRoute') {
-					var _v2 = A2($author$project$Pages$Counter$update, counterMsg, model.counterPage);
-					var counterModel = _v2.a;
-					var counterCmd = _v2.b;
+				var _v2 = model.page;
+				if (_v2.$ === 'CounterPage') {
+					var oldCounterModel = _v2.a;
+					var _v3 = A2($author$project$Pages$Counter$update, counterMsg, oldCounterModel);
+					var newCounterModel = _v3.a;
+					var counterCmd = _v3.b;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{counterPage: counterModel}),
+							{
+								page: $author$project$Main$CounterPage(newCounterModel)
+							}),
 						A2($elm$core$Platform$Cmd$map, $author$project$Main$GotCounterMsg, counterCmd));
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
-			default:
+			case 'GotSurveyMsg':
 				var surveyMsg = msg.a;
-				var _v3 = A2($author$project$Pages$Survey$update, surveyMsg, model.surveyPage);
-				var survayModel = _v3.a;
-				var survayCmd = _v3.b;
+				var _v4 = model.page;
+				if (_v4.$ === 'SurveyPage') {
+					var oldSurveyModel = _v4.a;
+					var _v5 = A2($author$project$Pages$Survey$update, surveyMsg, oldSurveyModel);
+					var newSurveyModel = _v5.a;
+					var surveyCmd = _v5.b;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								page: $author$project$Main$SurveyPage(newSurveyModel)
+							}),
+						A2($elm$core$Platform$Cmd$map, $author$project$Main$GotSurveyMsg, surveyCmd));
+				} else {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
+			default:
+				var userName = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{surveyPage: survayModel}),
-					A2($elm$core$Platform$Cmd$map, $author$project$Main$GotSurveyMsg, survayCmd));
+						{userName: userName}),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
 var $elm$html$Html$footer = _VirtualDom_node('footer');
 var $author$project$Main$getTitle = function (route) {
-	switch (route.$) {
-		case 'CounterRoute':
+	if (route.$ === 'Just') {
+		if (route.a.$ === 'CounterRoute') {
+			var _v1 = route.a;
 			return 'Elm SPA boilerplate - Counter';
-		case 'SurveyRoute':
+		} else {
 			return 'Elm SPA boilerplate - Survay';
-		default:
-			return 'Elm SPA boilerplate';
+		}
+	} else {
+		return 'Elm SPA boilerplate';
 	}
 };
 var $elm$html$Html$main_ = _VirtualDom_node('main');
@@ -7040,23 +7110,24 @@ var $author$project$Main$viewHeader = F2(
 				var _v0 = _Utils_Tuple2(routeA, routeB);
 				_v0$2:
 				while (true) {
-					switch (_v0.a.$) {
-						case 'CounterRoute':
+					if (_v0.a.$ === 'Just') {
+						if (_v0.a.a.$ === 'CounterRoute') {
 							if (_v0.b.$ === 'CounterRoute') {
-								var _v1 = _v0.a;
+								var _v1 = _v0.a.a;
 								var _v2 = _v0.b;
 								return true;
 							} else {
 								break _v0$2;
 							}
-						case 'SurveyRoute':
+						} else {
 							if (_v0.b.$ === 'SurveyRoute') {
 								return true;
 							} else {
 								break _v0$2;
 							}
-						default:
-							break _v0$2;
+						}
+					} else {
+						break _v0$2;
 					}
 				}
 				return false;
@@ -7093,23 +7164,20 @@ var $author$project$Main$viewHeader = F2(
 	});
 var $author$project$Main$view = function (model) {
 	var content = function () {
-		var _v0 = model.route;
+		var _v0 = model.page;
 		switch (_v0.$) {
-			case 'CounterRoute':
+			case 'CounterPage':
+				var counterModel = _v0.a;
 				return A2(
 					$elm$html$Html$map,
 					$author$project$Main$GotCounterMsg,
-					$author$project$Pages$Counter$view(model.counterPage));
-			case 'SurveyRoute':
-				var userName = _v0.a;
-				var survayModel = model.surveyPage;
+					$author$project$Pages$Counter$view(counterModel));
+			case 'SurveyPage':
+				var surveyModel = _v0.a;
 				return A2(
 					$elm$html$Html$map,
 					$author$project$Main$GotSurveyMsg,
-					$author$project$Pages$Survey$view(
-						_Utils_update(
-							survayModel,
-							{name: userName})));
+					$author$project$Pages$Survey$view(surveyModel));
 			default:
 				return $elm$html$Html$text('Sorry, I did\'t find this page');
 		}
@@ -7117,7 +7185,7 @@ var $author$project$Main$view = function (model) {
 	return {
 		body: _List_fromArray(
 			[
-				A2($author$project$Main$viewHeader, model.route, model.surveyPage.name),
+				A2($author$project$Main$viewHeader, model.route, model.userName),
 				A2(
 				$elm$html$Html$main_,
 				_List_Nil,

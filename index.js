@@ -19,9 +19,14 @@ if (!navigator.serviceWorker.controller) {
 
 const COUNTER = 'counter'
 
-const counterInitialValue = window.localStorage.getItem(COUNTER) || '0'
+const getCounter = () => {
 
-const app = Elm.Main.init({flags: Number(counterInitialValue)});
+	const counterValue = window.localStorage.getItem(COUNTER) || '0'
+
+	return Number(counterValue)
+}
+
+const app = Elm.Main.init({flags: getCounter()});
 
 app.ports.setCounter.subscribe(counter => {
 	window.localStorage.setItem(COUNTER, counter)
@@ -49,4 +54,8 @@ app.ports.sendUrlChangeRequest.subscribe(url => {
 
   // With View Transitions:
   const transition = document.startViewTransition(() => changePage());
+})
+
+app.ports.requestCounter.subscribe(() => {
+	return getCounter()
 })

@@ -1,4 +1,4 @@
-port module Pages.Survey exposing (Model, Msg, init, subscriptions, update, view)
+module Pages.Survey exposing (Model, Msg, init, update, view)
 
 import Html exposing (Html, button, div, input, label, text)
 import Html.Attributes exposing (checked, type_)
@@ -17,7 +17,6 @@ type alias Model =
 
 type Msg
     = SetLike Bool
-    | GotUserName String
     | LoadData String
     | DataLoaded (Result Http.Error SomeData)
 
@@ -35,22 +34,11 @@ type alias SomeData =
     }
 
 
-port getUserName : (String -> msg) -> Sub msg
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    getUserName GotUserName
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         SetLike likeElm ->
             ( { model | likeElm = likeElm }, Cmd.none )
-
-        GotUserName userName ->
-            ( { model | name = userName }, Cmd.none )
 
         LoadData id ->
             ( { model | data = Loading }, callGetData id )
